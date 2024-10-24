@@ -37,7 +37,15 @@ class VRPolicy:
         self.pos_action_gain = pos_action_gain
         self.rot_action_gain = rot_action_gain
         self.gripper_action_gain = gripper_action_gain
-        self.global_to_env_mat = vec_to_reorder_mat(rmat_reorder)
+        
+        # This is fix for shifted axes in the VR controller
+        # self.global_to_env_mat = vec_to_reorder_mat(rmat_reorder)
+        self.global_to_env_mat = np.array([[ 0, -np.sqrt(3)/2,          0.5, 0],
+                                           [-1,             0,            0, 0],
+                                           [ 0,           0.5, np.sqrt(3)/2, 0],
+                                           [ 0,             0,            0, 1]])
+        
+        
         self.controller_id = "r" if right_controller else "l"
         self.reset_orientation = True
         self.reset_state()
@@ -101,7 +109,14 @@ class VRPolicy:
 
     def _process_reading(self):
         rot_mat = np.asarray(self._state["poses"][self.controller_id])
-        rot_mat = self.global_to_env_mat @ self.vr_to_global_mat @ rot_mat
+        
+        # This changes axes, Probably it can be changed by rmat_reorder parameter in the constructor
+        fix = np.array([[ 0,            0,          -1, 0],
+                        [ 0,             1,            0, 0],
+                        [ -1,           0,              0, 0],
+                        [ 0,             0,            0, 1]])
+        
+        rot_mat = fix @ self.global_to_env_mat @ self.vr_to_global_mat @ rot_mat
         vr_pos = self.spatial_coeff * rot_mat[:3, 3]
         vr_quat = rmat_to_quat(rot_mat[:3, :3])
         vr_gripper = self._state["buttons"]["rightTrig" if self.controller_id == "r" else "leftTrig"][0]
@@ -131,7 +146,8 @@ class VRPolicy:
         robot_pos = np.array(state_dict["cartesian_position"][:3])
         robot_euler = state_dict["cartesian_position"][3:]
         robot_quat = euler_to_quat(robot_euler)
-        robot_gripper = state_dict["gripper_position"]
+        # TODO: commented out until we support gripper
+        # robot_gripper = state_dict["gripper_position"]
 
         # Reset Origin On Release #
         if self.reset_origin:
@@ -151,7 +167,9 @@ class VRPolicy:
         euler_action = quat_to_euler(quat_action)
 
         # Calculate Gripper Action #
-        gripper_action = (self.vr_state["gripper"] * 1.5) - robot_gripper
+        # TODO: gripper_action set to 0 until we support gripper
+        # gripper_action = (self.vr_state["gripper"] * 1.5) - robot_gripper
+        gripper_action = 0.
 
         # Calculate Desired Pose #
         target_pos = pos_action + robot_pos
@@ -162,12 +180,16 @@ class VRPolicy:
         # Scale Appropriately #
         pos_action *= self.pos_action_gain
         euler_action *= self.rot_action_gain
-        gripper_action *= self.gripper_action_gain
+        # TODO: gripper_action set to 0 until we support gripper
+        # gripper_action *= self.gripper_action_gain
+        gripper_action *= 0
         lin_vel, rot_vel, gripper_vel = self._limit_velocity(pos_action, euler_action, gripper_action)
 
         # Prepare Return Values #
         info_dict = {"target_cartesian_position": target_cartesian, "target_gripper_position": target_gripper}
-        action = np.concatenate([lin_vel, rot_vel, [gripper_vel]])
+        # TODO: gripper vel removed until we support gripper
+        # action = np.concatenate([lin_vel, rot_vel, [gripper_vel]])
+        action = np.concatenate([lin_vel, rot_vel])
         action = action.clip(-1, 1)
 
         # Return #
@@ -186,7 +208,8 @@ class VRPolicy:
 
     def forward(self, obs_dict, include_info=False):
         if self._state["poses"] == {}:
-            action = np.zeros(7)
+            # TODO: commented out until we support gripper
+            action = np.zeros(6)
             if include_info:
                 return action, {}
             else:

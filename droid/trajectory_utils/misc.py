@@ -51,7 +51,9 @@ def collect_trajectory(
     # Reset States #
     if controller is not None:
         controller.reset_state()
-    env.camera_reader.set_trajectory_mode()
+        
+    # TODO: Commented out until we have sufficent camera_reader
+    # env.camera_reader.set_trajectory_mode()
 
     # Prepare Data Writers If Necesary #
     if save_filepath:
@@ -82,16 +84,23 @@ def collect_trajectory(
         control_timestamps["policy_start"] = time_ms()
         if policy is None:
             action, controller_action_info = controller.forward(obs, include_info=True)
+            # TODO: This is some workaround. Eventually we want to use action as action.
+            if controller_action_info == {}:
+                action = obs["robot_state"]["cartesian_position"]
+            else:
+                # action = np.concatenate([controller_action_info["target_cartesian_position"], [controller_action_info["target_gripper_position"]]])
+                action = controller_action_info["target_cartesian_position"]
         else:
             action = policy.forward(obs)
             controller_action_info = {}
 
+        # TODO: Commented out because we don't have env.control_hz
         # Regularize Control Frequency #
-        control_timestamps["sleep_start"] = time_ms()
-        comp_time = time_ms() - control_timestamps["step_start"]
-        sleep_left = (1 / env.control_hz) - (comp_time / 1000)
-        if sleep_left > 0:
-            time.sleep(sleep_left)
+        # control_timestamps["sleep_start"] = time_ms()
+        # comp_time = time_ms() - control_timestamps["step_start"]
+        # sleep_left = (1 / env.control_hz) - (comp_time / 1000)
+        # if sleep_left > 0:
+        #     time.sleep(sleep_left)
 
         # Moniter Control Frequency #
         # moniter_control_frequency = True
@@ -105,7 +114,8 @@ def collect_trajectory(
             action_info = env.create_action_dict(np.zeros_like(action))
         else:
             action_info = env.step(action)
-        action_info.update(controller_action_info)
+        # TODO: commented out because we don't use it. 
+        # action_info.update(controller_action_info)
 
         # Save Data #
         control_timestamps["step_end"] = time_ms()
