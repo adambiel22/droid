@@ -146,8 +146,7 @@ class VRPolicy:
         robot_pos = np.array(state_dict["cartesian_position"][:3])
         robot_euler = state_dict["cartesian_position"][3:]
         robot_quat = euler_to_quat(robot_euler)
-        # TODO: commented out until we support gripper
-        # robot_gripper = state_dict["gripper_position"]
+        robot_gripper = state_dict["gripper_position"]
 
         # Reset Origin On Release #
         if self.reset_origin:
@@ -167,9 +166,8 @@ class VRPolicy:
         euler_action = quat_to_euler(quat_action)
 
         # Calculate Gripper Action #
-        # TODO: gripper_action set to 0 until we support gripper
-        # gripper_action = (self.vr_state["gripper"] * 1.5) - robot_gripper
-        gripper_action = 0.
+        # TODO: Why the value 1.5?
+        gripper_action = (self.vr_state["gripper"] * 1.5) - robot_gripper
 
         # Calculate Desired Pose #
         target_pos = pos_action + robot_pos
@@ -181,15 +179,13 @@ class VRPolicy:
         pos_action *= self.pos_action_gain
         euler_action *= self.rot_action_gain
         # TODO: gripper_action set to 0 until we support gripper
-        # gripper_action *= self.gripper_action_gain
-        gripper_action *= 0
+        gripper_action *= self.gripper_action_gain
         lin_vel, rot_vel, gripper_vel = self._limit_velocity(pos_action, euler_action, gripper_action)
 
         # Prepare Return Values #
         info_dict = {"target_cartesian_position": target_cartesian, "target_gripper_position": target_gripper}
         # TODO: gripper vel removed until we support gripper
-        # action = np.concatenate([lin_vel, rot_vel, [gripper_vel]])
-        action = np.concatenate([lin_vel, rot_vel])
+        action = np.concatenate([lin_vel, rot_vel, [gripper_vel]])
         action = action.clip(-1, 1)
 
         # Return #

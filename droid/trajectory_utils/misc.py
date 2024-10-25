@@ -51,7 +51,7 @@ def collect_trajectory(
     # Reset States #
     if controller is not None:
         controller.reset_state()
-        
+
     # TODO: Commented out until we have sufficent camera_reader
     # env.camera_reader.set_trajectory_mode()
 
@@ -86,10 +86,16 @@ def collect_trajectory(
             action, controller_action_info = controller.forward(obs, include_info=True)
             # TODO: This is some workaround. Eventually we want to use action as action.
             if controller_action_info == {}:
-                action = obs["robot_state"]["cartesian_position"]
+                action = np.concatenate(
+                    [obs["robot_state"]["cartesian_position"], [obs["robot_state"]["gripper_position"]]]
+                )
             else:
-                # action = np.concatenate([controller_action_info["target_cartesian_position"], [controller_action_info["target_gripper_position"]]])
-                action = controller_action_info["target_cartesian_position"]
+                action = np.concatenate(
+                    [
+                        controller_action_info["target_cartesian_position"],
+                        [controller_action_info["target_gripper_position"]],
+                    ]
+                )
         else:
             action = policy.forward(obs)
             controller_action_info = {}
@@ -114,7 +120,7 @@ def collect_trajectory(
             action_info = env.create_action_dict(np.zeros_like(action))
         else:
             action_info = env.step(action)
-        # TODO: commented out because we don't use it. 
+        # TODO: commented out because we don't use it.
         # action_info.update(controller_action_info)
 
         # Save Data #
